@@ -1,0 +1,363 @@
+// PROJECT  :LongISP_Trigonometer
+// PURPOSE  :To display three basic trigonometric functions on LED matrices and their properties on the TFT LCD.
+// COURSE   :ICS3U-E2
+// AUTHOR   :William Xie
+// DATE     :2025 01 18
+// MCU      :2560
+// STATUS   :Working (Partially)
+// REFERENCE:http://darcy.rsgc.on.ca/ACES/TEI3M/2425/ISPs.html#logs
+
+//Libaries Needed
+#include <SPI.h>  // Enable SPI communication
+#include "Adafruit_GFX.h"
+#include "Adafruit_ILI9341.h"
+#include "LedControl.h"
+#include "Keypad.h"
+//
+
+//Pins Defined
+#define TFT_DC 7
+#define TFT_CS 53
+#define TFT_RESET 29
+#define Black 0x0000
+#define Continue 2
+#define sinFunction 3
+#define cosFunction 4
+#define tanFunction 5
+#define reset 6
+
+LedControl matrix = LedControl(31, 47, 23, 8);
+
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RESET);
+
+// Keypad Setups
+const byte ROWS = 4;  //four rows
+const byte COLS = 3;  //three columns
+char keys[ROWS][COLS] = {
+  { '1', '2', '3' },
+  { '4', '5', '6' },
+  { '7', '8', '9' },
+  { ' ', '0', ' ' }
+};
+byte rowPins[ROWS] = { 24, 35, 37, 41 };  //connect to the row pinouts of the keypad
+byte colPins[COLS] = { 43, 27, 39 };      //connect to the column pinouts of the keypad
+
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+//
+
+uint8_t sineFunction[32][3] = {
+  { 7, 7, 0 },
+  { 7, 6, 1 },
+  { 7, 5, 2 },
+  { 7, 5, 3 },
+  { 7, 4, 4 },
+  { 7, 4, 5 },
+  { 7, 5, 6 },
+  { 7, 5, 7 },
+  { 6, 6, 0 },
+  { 6, 7, 1 },
+  { 2, 0, 2 },
+  { 2, 1, 3 },
+  { 2, 2, 4 },
+  { 2, 2, 5 },
+  { 2, 3, 6 },
+  { 2, 3, 7 },
+  { 1, 2, 0 },
+  { 1, 2, 1 },
+  { 1, 1, 2 },
+  { 1, 0, 3 },
+  { 5, 7, 4 },
+  { 5, 6, 5 },
+  { 5, 5, 6 },
+  { 5, 5, 7 },
+  { 4, 4, 0 },
+  { 4, 4, 1 },
+  { 4, 5, 2 },
+  { 4, 5, 3 },
+  { 4, 6, 4 },
+  { 4, 7, 5 },
+  { 0, 0, 6 },
+  { 0, 1, 7 },
+};
+
+uint8_t cosineFunction[32][3] = {
+  { 7, 4, 0 },
+  { 7, 5, 1 },
+  { 7, 5, 2 },
+  { 7, 6, 3 },
+  { 7, 7, 4 },
+  { 3, 0, 5 },
+  { 3, 1, 6 },
+  { 3, 2, 7 },
+  { 2, 2, 0 },
+  { 2, 3, 1 },
+  { 2, 3, 2 },
+  { 2, 2, 3 },
+  { 2, 2, 4 },
+  { 2, 1, 5 },
+  { 2, 0, 6 },
+  { 6, 7, 7 },
+  { 5, 6, 0 },
+  { 5, 5, 1 },
+  { 5, 5, 2 },
+  { 5, 4, 3 },
+  { 5, 4, 4 },
+  { 5, 5, 5 },
+  { 5, 5, 6 },
+  { 5, 6, 7 },
+  { 4, 7, 0 },
+  { 0, 0, 1 },
+  { 0, 1, 2 },
+  { 0, 2, 3 },
+  { 0, 2, 4 },
+  { 0, 3, 5 },
+  { 0, 3, 6 },
+  { 0, 2, 7 },
+};
+
+uint8_t tangentFunction[59][3] = {
+  { 7, 2, 0 },
+  { 7, 1, 0 },
+  { 7, 0, 0 },
+  { 3, 7, 0 },
+  { 3, 6, 0 },
+  { 3, 5, 0 },
+  { 3, 4, 1 },
+  { 3, 3, 1 },
+  { 3, 2, 2 },
+  { 3, 1, 3 },
+  { 3, 0, 4 },
+  { 7, 7, 5 },
+  { 7, 6, 6 },
+  { 7, 5, 7 },
+  { 6, 4, 0 },
+  { 6, 3, 0 },
+  { 6, 2, 1 },
+  { 6, 1, 1 },
+  { 6, 0, 1 },
+  { 2, 7, 1 },
+  { 2, 6, 1 },
+  { 2, 5, 1 },
+  { 2, 4, 2 },
+  { 2, 3, 2 },
+  { 2, 2, 3 },
+  { 2, 1, 4 },
+  { 2, 0, 5 },
+  { 6, 7, 6 },
+  { 6, 6, 7 },
+  { 5, 5, 0 },
+  { 5, 4, 1 },
+  { 5, 3, 1 },
+  { 5, 2, 2 },
+  { 5, 1, 2 },
+  { 5, 0, 2 },
+  { 1, 7, 2 },
+  { 1, 6, 2 },
+  { 1, 5, 2 },
+  { 1, 4, 3 },
+  { 1, 3, 3 },
+  { 1, 2, 4 },
+  { 1, 1, 5 },
+  { 1, 0, 6 },
+  { 5, 7, 7 },
+  { 4, 6, 0 },
+  { 4, 5, 1 },
+  { 4, 4, 2 },
+  { 4, 3, 2 },
+  { 4, 2, 3 },
+  { 4, 1, 3 },
+  { 4, 0, 3 },
+  { 0, 7, 3 },
+  { 0, 6, 3 },
+  { 0, 5, 3 },
+  { 0, 4, 4 },
+  { 0, 3, 4 },
+  { 0, 2, 5 },
+  { 0, 1, 6 },
+  { 0, 0, 7 },
+};
+
+void sinFunctionGraph() {  // Set up the equation for sine function
+  if (digitalRead(sinFunction) == HIGH) {
+    tft.setCursor(25, 50);
+    tft.fillScreen(Black);
+    tft.println("Input parameters for your function");
+    tft.setTextSize(2);
+    tft.setCursor(0, 100);
+    tft.println("( )sin(( )x-( ))+( )");
+    for (uint8_t i = 0; i < 32; i++) {   // Graph f(x) = sinx
+      matrix.setLed(sineFunction[i][0], sineFunction[i][1], sineFunction[i][2], true);
+    }
+    tft.setCursor(0, 200);
+    tft.println("f(x) = sinx"); // Properties of f(x) = sinx
+    tft.println("Amplitude: 1");
+    tft.println("Period: 2pi");
+    tft.println("Domain: R");
+    tft.println("Range: [-1, 1]");
+  }
+}
+
+void cosFunctionGraph() {  // Set up the equation for cosine function
+  if (digitalRead(cosFunction) == HIGH) {
+    tft.setCursor(25, 50);
+    tft.fillScreen(Black);
+    tft.println("Input parameters for your function");
+    tft.setTextSize(2);
+    tft.setCursor(0, 100);
+    tft.println("( )cos(( )x-( ))+( )");
+    for (uint8_t i = 0; i < 32; i++) {
+      matrix.setLed(cosineFunction[i][0], cosineFunction[i][1], cosineFunction[i][2], true);
+    }
+    tft.setCursor(0, 200);
+    tft.println("f(x) = cosx");
+    tft.println("Amplitude: 1");
+    tft.println("Period: 2pi");
+    tft.println("Domain: R");
+    tft.println("Range: [-1, 1]");
+  }
+}
+
+void tanFunctionGraph() {  // Set up the equation for tangent function
+  if (digitalRead(tanFunction) == HIGH) {
+    tft.setCursor(25, 50);
+    tft.fillScreen(Black);
+    tft.println("Input parameters for your function");
+    tft.setTextSize(2);
+    tft.setCursor(0, 100);
+    tft.println("( )tan(( )x-( ))+( )");
+    for (uint8_t i = 0; i < 59; i++) {
+      matrix.setLed(tangentFunction[i][0], tangentFunction[i][1], tangentFunction[i][2], true);
+    }
+    tft.setCursor(0, 200);
+    tft.println("f(x) = tanx");
+    tft.println("Amplitude: N/A");
+    tft.println("Period: pi");
+    tft.println("Domain: {xER|x!=(pi/2+kpi),kEZ");
+    tft.println("Range: [-infinite, +infinite]");
+  }
+}
+
+void tftSetup() {
+  tft.fillScreen(Black);  // Fill the screen with black color
+  tft.setCursor(25, 120);
+  tft.setTextSize(3);         // Set the text size to 3
+  tft.println("Welcome to");  // Display welcoming texts
+  tft.println("Trigonometer!");
+}
+
+void tftDisplay() {  // LCD display
+  uint32_t startTime = millis();
+  uint16_t Interval = 2000;
+  while (millis() - startTime < Interval) {
+    if (digitalRead(Continue) == HIGH) {
+      tft.fillScreen(Black);
+      tft.setCursor(25, 50);
+      tft.setTextSize(2);
+      tft.println("Which mode would you like to use?");
+      tft.setCursor(5, 120);
+      tft.println("Entering Parameters");
+      tft.setCursor(15, 190);
+      tft.println("Joystick Creation");
+      while (millis() - startTime < Interval + 2000) {
+        if (digitalRead(Continue) == HIGH) {
+          tft.setCursor(25, 50);
+          tft.fillScreen(Black);
+          tft.println("Which type of function would you like to graph?");
+          while (millis() - startTime < Interval + 4000) {
+            sinFunctionGraph();
+            cosFunctionGraph();
+            tanFunctionGraph();
+          }
+        }
+      }
+    }
+  }
+}
+
+
+void setup() {
+  Serial.begin(9600);
+  uint8_t stop = 0;
+  tft.begin();
+  uint8_t devices = matrix.getDeviceCount();
+  //we have to init all devices in a loop
+  for (int address = 0; address < devices; address++) {
+    /*The MAX72XX is in power-saving mode on startup*/
+    matrix.shutdown(address, false);
+    /* Set the brightness to a medium values */
+    matrix.setIntensity(address, 1);
+    /* and clear the display */
+    matrix.clearDisplay(address);
+  }
+  tftSetup();
+  tftDisplay();
+}
+
+uint8_t parameter = 0;
+
+void parameterAmplitude() {
+  char amplitude = keypad.getKey();
+  uint8_t amplitudeCursorx = 10;
+  if (amplitude) {
+    tft.setCursor(amplitudeCursorx, 100);
+    tft.println(amplitude);
+    parameter++;
+  }
+}
+
+void parameterPeriod() {
+  char period = keypad.getKey();
+  uint8_t periodCursorx = 95;
+  if (period) {
+    tft.setCursor(periodCursorx, 100);
+    tft.println(period);
+    parameter++;
+  }
+}
+
+void parameterPhaseShift() {
+  char phaseShift = keypad.getKey();
+  uint8_t phaseCursorx = 155;
+  if (phaseShift) {
+    tft.setCursor(phaseCursorx, 100);
+    tft.println(phaseShift);
+    parameter++;
+  }
+}
+
+void parameterVD() {
+  char VD = keypad.getKey();
+  uint8_t VDCursorx = 220;
+  if (VD) {
+    tft.setCursor(VDCursorx, 100);
+    tft.println(VD);
+  }
+}
+
+void keypadInput() {
+  switch (parameter) {
+    case 0:
+      parameterAmplitude();
+      break;
+    case 1:
+      parameterPeriod();
+      break;
+    case 2:
+      parameterPhaseShift();
+      break;
+    case 3:
+      parameterVD();
+      break;
+  }
+}
+
+void resetSystem() {
+  if (digitalRead(reset) == HIGH) {
+    setup();
+  }
+}
+
+void loop() {
+  keypadInput();
+  resetSystem();
+}
